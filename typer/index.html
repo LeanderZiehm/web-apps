@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weighted Typing Test with Persistent Settings</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #1e1e1e;
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+    }
+    h1 { margin-bottom: 10px; }
+    #textDisplay {
+        font-size: 24px;
+        margin: 20px 0;
+        padding: 10px;
+        border: 2px solid #555;
+        border-radius: 5px;
+        width: 80%;
+        max-width: 800px;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+        background-color: #2b2b2b;
+    }
+    #inputBox {
+        font-size: 24px;
+        padding: 10px;
+        width: 80%;
+        max-width: 800px;
+        border: 2px solid #555;
+        border-radius: 5px;
+        background-color: #2b2b2b;
+        color: #fff;
+    }
+    #stats { margin-top: 20px; font-size: 18px; }
+    #settingsPanel {
+        display: none;
+        margin-top: 20px;
+        padding: 15px;
+        border: 2px solid #555;
+        border-radius: 5px;
+        background-color: #2b2b2b;
+        width: 80%;
+        max-width: 800px;
+    }
+    #settingsPanel input {
+        margin: 5px;
+        width: 50px;
+        text-align: center;
+        background-color: #1e1e1e;
+        border: 1px solid #555;
+        color: #fff;
+        border-radius: 3px;
+    }
+    #settingsPanel label { margin-right: 10px; }
+    #settingsButton, #addCharButton, #updateWeights {
+        margin-top: 10px;
+        padding: 8px 15px;
+        background-color: #444;
+        border: none;
+        color: #fff;
+        cursor: pointer;
+        border-radius: 3px;
+    }
+    #settingsButton:hover, #addCharButton:hover, #updateWeights:hover { background-color: #666; }
+</style>
+</head>
+<body>
+
+<h1>Weighted Typing Test</h1>
+<div id="textDisplay"></div>
+<input type="text" id="inputBox" placeholder="Start typing..." autofocus>
+<div id="stats">
+    <span id="correct">Correct: 0</span> | 
+    <span id="errors">Errors: 0</span>
+</div>
+
+<button id="settingsButton">Settings</button>
+
+<div id="settingsPanel">
+    <h3>Character Weights</h3>
+    <div id="charInputs"></div>
+    <div style="margin-top:10px;">
+        <input type="text" id="newChar" maxlength="1" placeholder="Char">
+        <input type="number" id="newWeight" min="0" placeholder="Weight">
+        <button id="addCharButton">Add Character</button>
+    </div>
+    <button id="updateWeights">Update Weights</button>
+</div>
+
+<script>
+/* =============================
+   LOAD/INIT CHARACTER WEIGHTS
+============================= */
+
+
+let charWeightsInitial = {"a": 1, "b": 1, "c": 1, "d": 1, "e": 1, "f": 1, "g": 1, "h": 1, "i": 1, "j": 1, "k": 1, "l": 1, "m": 1, "n": 1, "o": 1, "p": 1, "q": 1, "r": 1, "s": 1, "t": 1, "u": 1, "v": 1, "w": 1, "x": 1, "y": 1, "z": 1, "A": 1, "B": 1, "C": 1, "D": 1, "E": 1, "F": 1, "G": 1, "H": 1, "I": 1, "J": 1, "K": 1, "L": 1, "M": 1, "N": 1, "O": 1, "P": 1, "Q": 1, "R": 1, "S": 1, "T": 1, "U": 1, "V": 1, "W": 1, "X": 1, "Y": 1, "Z": 1, "0": 1, "1": 1, "2": 1, "3": 1, "4": 1, "5": 1, "6": 1, "7": 1, "8": 1, "9": 1, "!": 1, "@": 1, "#": 1, "$": 1, "%": 1, "^": 1, "&": 1, "*": 1, "(": 1, ")": 1, "_": 1, "+": 1, "[": 1, "]": 1, "{": 1, "}": 1, ";": 1, ":": 1, ",": 1, ".": 1, "<": 1, ">": 1, "?": 1, "/": 1, "|": 1, "\\": 1, "\"": 1, "'": 1, "`": 1, "~": 1, "-": 1, " ": 1}
+
+
+
+let charWeights = JSON.parse(localStorage.getItem('charWeights')) || charWeightsInitial;
+function saveWeights() {
+    localStorage.setItem('charWeights', JSON.stringify(charWeights));
+}
+
+/* =============================
+   PROBABILITY ARRAY
+============================= */
+function buildProbabilityArray(weights) {
+    const chars = Object.keys(weights);
+    const totalWeight = chars.reduce((sum, c) => sum + Number(weights[c]), 0);
+    const probabilityArray = [];
+    chars.forEach(c => {
+        const count = Math.round((weights[c] / totalWeight) * 100);
+        for (let i = 0; i < count; i++) probabilityArray.push(c);
+    });
+    return probabilityArray;
+}
+
+let probabilityArray = buildProbabilityArray(charWeights);
+
+/* =============================
+   GENERATE RANDOM TEXT
+============================= */
+function generateText(length = 200) {
+    let text = '';
+    for (let i = 0; i < length; i++) {
+        const randIndex = Math.floor(Math.random() * probabilityArray.length);
+        text += probabilityArray[randIndex];
+    }
+    return text;
+}
+
+/* =============================
+   TYPING TEST LOGIC
+============================= */
+let textToType = generateText();
+let currentIndex = 0;
+let correct = 0;
+let errors = 0;
+
+const textDisplay = document.getElementById('textDisplay');
+const inputBox = document.getElementById('inputBox');
+const correctSpan = document.getElementById('correct');
+const errorsSpan = document.getElementById('errors');
+
+function renderText() {
+    let html = '';
+    for (let i = 0; i < textToType.length; i++) {
+        if (i < currentIndex) {
+            html += `<span style="color: ${inputBox.value[i] === textToType[i] ? '#0f0' : '#f00'}">${textToType[i]}</span>`;
+        } else if (i === currentIndex) {
+            html += `<span style="text-decoration: underline;">${textToType[i]}</span>`;
+        } else {
+            html += textToType[i];
+        }
+    }
+    textDisplay.innerHTML = html;
+}
+
+function resetTest() {
+    textToType = generateText();
+    currentIndex = 0;
+    correct = 0;
+    errors = 0;
+    inputBox.value = '';
+    correctSpan.textContent = `Correct: ${correct}`;
+    errorsSpan.textContent = `Errors: ${errors}`;
+    renderText();
+}
+
+const gamesMisstypes = [];
+inputBox.addEventListener('input', () => {
+    const value = inputBox.value;
+    const length = value.length;
+
+    // Update currentIndex to match typed length
+    currentIndex = length;
+
+    // Recalculate correct/errors based on current input
+    correct = 0;
+    errors = 0;
+
+    for (let i = 0; i < length; i++) {
+        const typedChar = value[i];
+        const expectedChar = textToType[i];
+
+        if (typedChar === expectedChar) {
+            correct++;
+        } else {
+            errors++;
+            gamesMisstypes.push({"target":expectedChar,"typed":typedChar});
+            console.log({"target":expectedChar,"typed":typedChar});
+        }
+    }
+
+    // Update display
+    correctSpan.textContent = `Correct: ${correct}`;
+    errorsSpan.textContent = `Errors: ${errors}`;
+
+    renderText();
+
+    // Test finished?
+    if (currentIndex >= textToType.length) {
+        alert(`Finished! Correct: ${correct}, Errors: ${errors}`);
+        resetTest();
+    }
+});
+
+
+
+/* =============================
+   SETTINGS PANEL
+============================= */
+const settingsButton = document.getElementById('settingsButton');
+const settingsPanel = document.getElementById('settingsPanel');
+const charInputsDiv = document.getElementById('charInputs');
+const updateWeightsButton = document.getElementById('updateWeights');
+const addCharButton = document.getElementById('addCharButton');
+
+function renderSettings() {
+    charInputsDiv.innerHTML = '';
+    for (const [char, weight] of Object.entries(charWeights)) {
+        const label = document.createElement('label');
+        label.textContent = `"${char}"`;
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = 0;
+        input.value = weight;
+        input.dataset.char = char;
+
+        const inputAndLabel = document.createElement("div")
+        inputAndLabel.appendChild(label);
+        inputAndLabel.appendChild(input);
+        charInputsDiv.appendChild(inputAndLabel);
+    }
+}
+
+settingsButton.addEventListener('click', () => {
+    settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
+    renderSettings();
+});
+
+updateWeightsButton.addEventListener('click', () => {
+    const inputs = charInputsDiv.querySelectorAll('input');
+    inputs.forEach(input => {
+        const char = input.dataset.char;
+        const weight = Number(input.value);
+        createOrUpdateCharWeight(char,weight);
+       
+    });
+    resetTest();
+});
+
+function createOrUpdateCharWeight(char,weight){
+    if (weight >= 0) charWeights[char] = weight;
+    saveWeights();
+    probabilityArray = buildProbabilityArray(charWeights);
+}
+
+/* =============================
+   ADD NEW CHARACTER
+============================= */
+addCharButton.addEventListener('click', () => {
+    const newChar = document.getElementById('newChar').value;
+    const newWeight = Number(document.getElementById('newWeight').value);
+
+    if (!newChar || newChar.length !== 1 || isNaN(newWeight) || newWeight < 0) {
+        alert('Enter a valid single character and a non-negative weight.');
+        return;
+    }
+
+    charWeights[newChar] = newWeight;
+    probabilityArray = buildProbabilityArray(charWeights);
+    saveWeights();
+    document.getElementById('newChar').value = '';
+    document.getElementById('newWeight').value = '';
+    renderSettings();
+    resetTest();
+});
+
+/* =============================
+   INITIAL RENDER
+============================= */
+renderText();
+</script>
+
+</body>
+</html>
