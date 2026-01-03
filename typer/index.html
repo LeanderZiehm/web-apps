@@ -58,7 +58,7 @@
         border-radius: 3px;
     }
     #settingsPanel label { margin-right: 10px; }
-    #settingsButton, #addCharButton, #updateWeights {
+    #settingsButton, #addCharButton, #updateWeights, #resetWeights {
         margin-top: 10px;
         padding: 8px 15px;
         background-color: #444;
@@ -67,12 +67,12 @@
         cursor: pointer;
         border-radius: 3px;
     }
-    #settingsButton:hover, #addCharButton:hover, #updateWeights:hover { background-color: #666; }
+    #settingsButton:hover, #addCharButton:hover, #updateWeights:hover, #resetWeights:hover { background-color: #666; }
 </style>
 </head>
 <body>
 
-<h1>Weighted Typing Test</h1>
+<h1>Weighted Typing Test v0</h1>
 <div id="textDisplay"></div>
 <input type="text" id="inputBox" placeholder="Start typing..." autofocus>
 <div id="stats">
@@ -83,6 +83,9 @@
 <button id="settingsButton">Settings</button>
 
 <div id="settingsPanel">
+    <h3>Chars per round</h3>
+    <input type="number" id="charsPerRound" min="1" placeholder="10" value="10">
+
     <h3>Character Weights</h3>
     <div id="charInputs"></div>
     <div style="margin-top:10px;">
@@ -91,19 +94,17 @@
         <button id="addCharButton">Add Character</button>
     </div>
     <button id="updateWeights">Update Weights</button>
+    <button id="resetWeights">Reset Weights</button>
 </div>
 
 <script>
 /* =============================
    LOAD/INIT CHARACTER WEIGHTS
 ============================= */
-
-
-let charWeightsInitial = {"a": 1, "b": 1, "c": 1, "d": 1, "e": 1, "f": 1, "g": 1, "h": 1, "i": 1, "j": 1, "k": 1, "l": 1, "m": 1, "n": 1, "o": 1, "p": 1, "q": 1, "r": 1, "s": 1, "t": 1, "u": 1, "v": 1, "w": 1, "x": 1, "y": 1, "z": 1, "A": 1, "B": 1, "C": 1, "D": 1, "E": 1, "F": 1, "G": 1, "H": 1, "I": 1, "J": 1, "K": 1, "L": 1, "M": 1, "N": 1, "O": 1, "P": 1, "Q": 1, "R": 1, "S": 1, "T": 1, "U": 1, "V": 1, "W": 1, "X": 1, "Y": 1, "Z": 1, "0": 1, "1": 1, "2": 1, "3": 1, "4": 1, "5": 1, "6": 1, "7": 1, "8": 1, "9": 1, "!": 1, "@": 1, "#": 1, "$": 1, "%": 1, "^": 1, "&": 1, "*": 1, "(": 1, ")": 1, "_": 1, "+": 1, "[": 1, "]": 1, "{": 1, "}": 1, ";": 1, ":": 1, ",": 1, ".": 1, "<": 1, ">": 1, "?": 1, "/": 1, "|": 1, "\\": 1, "\"": 1, "'": 1, "`": 1, "~": 1, "-": 1, " ": 1}
-
-
+let charWeightsInitial = {"a":1,"b":1,"c":1,"d":1,"e":1,"f":1,"g":1,"h":1,"i":1,"j":1,"k":1,"l":1,"m":1,"n":1,"o":1,"p":1,"q":1,"r":1,"s":1,"t":1,"u":1,"v":1,"w":1,"x":1,"y":1,"z":1,"A":1,"B":1,"C":1,"D":1,"E":1,"F":1,"G":1,"H":1,"I":1,"J":1,"K":1,"L":1,"M":1,"N":1,"O":1,"P":1,"Q":1,"R":1,"S":1,"T":1,"U":1,"V":1,"W":1,"X":1,"Y":1,"Z":1,"0":1,"1":1,"2":1,"3":1,"4":1,"5":1,"6":1,"7":1,"8":1,"9":1,"!":1,"@":1,"#":1,"$":1,"%":1,"^":1,"&":1,"*":1,"(":1,")":1,"_":1,"+":1,"[":1,"]":1,"{":1,"}":1,";":1,":":1,",":1,".":1,"<":1,">":1,"?":1,"/":1,"|":1,"\\":1,"\"":1,"'":1,"`":1,"~":1,"-":1," ":1};
 
 let charWeights = JSON.parse(localStorage.getItem('charWeights')) || charWeightsInitial;
+
 function saveWeights() {
     localStorage.setItem('charWeights', JSON.stringify(charWeights));
 }
@@ -127,7 +128,7 @@ let probabilityArray = buildProbabilityArray(charWeights);
 /* =============================
    GENERATE RANDOM TEXT
 ============================= */
-function generateText(length = 200) {
+function generateText(length = 10) {
     let text = '';
     for (let i = 0; i < length; i++) {
         const randIndex = Math.floor(Math.random() * probabilityArray.length);
@@ -143,6 +144,7 @@ let textToType = generateText();
 let currentIndex = 0;
 let correct = 0;
 let errors = 0;
+let typedMistakes = {}; // store mistakes per char so we count once per char typed
 
 const textDisplay = document.getElementById('textDisplay');
 const inputBox = document.getElementById('inputBox');
@@ -153,7 +155,7 @@ function renderText() {
     let html = '';
     for (let i = 0; i < textToType.length; i++) {
         if (i < currentIndex) {
-            html += `<span style="color: ${inputBox.value[i] === textToType[i] ? '#0f0' : '#f00'}">${textToType[i]}</span>`;
+            html += `<span style="color: ${typedMistakes[i] ? '#f00' : '#0f0'}">${textToType[i]}</span>`;
         } else if (i === currentIndex) {
             html += `<span style="text-decoration: underline;">${textToType[i]}</span>`;
         } else {
@@ -164,29 +166,29 @@ function renderText() {
 }
 
 function resetTest() {
-    textToType = generateText();
+
+    const charsPerRoundValue = charsPerRoundInput.value || 10;  
+    textToType = generateText(charsPerRoundValue);
     currentIndex = 0;
     correct = 0;
     errors = 0;
+    typedMistakes = {};
     inputBox.value = '';
     correctSpan.textContent = `Correct: ${correct}`;
     errorsSpan.textContent = `Errors: ${errors}`;
     renderText();
 }
 
-const gamesMisstypes = [];
+/* =============================
+   HANDLE INPUT
+============================= */
 inputBox.addEventListener('input', () => {
     const value = inputBox.value;
     const length = value.length;
 
-    // Update currentIndex to match typed length
-    currentIndex = length;
-
-    // Recalculate correct/errors based on current input
-    correct = 0;
-    errors = 0;
-
-    for (let i = 0; i < length; i++) {
+    if (length > currentIndex) {
+        // only check the new character typed
+        const i = currentIndex;
         const typedChar = value[i];
         const expectedChar = textToType[i];
 
@@ -194,25 +196,65 @@ inputBox.addEventListener('input', () => {
             correct++;
         } else {
             errors++;
-            gamesMisstypes.push({"target":expectedChar,"typed":typedChar});
-            console.log({"target":expectedChar,"typed":typedChar});
+            typedMistakes[i] = true;
         }
-    }
 
-    // Update display
-    correctSpan.textContent = `Correct: ${correct}`;
-    errorsSpan.textContent = `Errors: ${errors}`;
+        currentIndex++;
+        correctSpan.textContent = `Correct: ${correct}`;
+        errorsSpan.textContent = `Errors: ${errors}`;
+        renderText();
 
-    renderText();
-
-    // Test finished?
-    if (currentIndex >= textToType.length) {
-        alert(`Finished! Correct: ${correct}, Errors: ${errors}`);
-        resetTest();
+        if (currentIndex >= textToType.length) {
+            setTimeout(() => {
+                alert(`Finished! Correct: ${correct}, Errors: ${errors}`);
+                offerWeightUpdate();
+            }, 10);
+        }
     }
 });
 
+/* =============================
+   OFFER WEIGHT UPDATE
+============================= */
+function offerWeightUpdate() {
+    // Count total mistypes per char
+    const mistypeCounts = {};
+    for (let i = 0; i < textToType.length; i++) {
+        if (typedMistakes[i]) {
+            const char = textToType[i];
+            mistypeCounts[char] = (mistypeCounts[char] || 0) + 1;
+        }
+    }
 
+    if (Object.keys(mistypeCounts).length === 0) {
+        resetTest();
+        return;
+    }
+
+    // Prepare proposed new weights (increase by 1% per mistype)
+    const proposedWeights = {};
+    for (const [char, count] of Object.entries(mistypeCounts)) {
+        const oldWeight = charWeights[char] || 1;
+        const newWeight = +(oldWeight * (1 + 0.01 * count)).toFixed(2);
+        proposedWeights[char] = newWeight;
+    }
+
+    let message = "Mistyped characters detected. Proposed weight updates:\n\n";
+    for (const char of Object.keys(proposedWeights)) {
+        message += `"${char}": ${charWeights[char]} → ${proposedWeights[char]}\n`;
+    }
+    message += "\nDo you want to apply these weight changes?";
+
+    if (confirm(message)) {
+        for (const [char, newWeight] of Object.entries(proposedWeights)) {
+            charWeights[char] = newWeight;
+        }
+        saveWeights();
+        probabilityArray = buildProbabilityArray(charWeights);
+    }
+
+    resetTest();
+}
 
 /* =============================
    SETTINGS PANEL
@@ -221,7 +263,10 @@ const settingsButton = document.getElementById('settingsButton');
 const settingsPanel = document.getElementById('settingsPanel');
 const charInputsDiv = document.getElementById('charInputs');
 const updateWeightsButton = document.getElementById('updateWeights');
+const resetWeightsButton = document.getElementById('resetWeights');
 const addCharButton = document.getElementById('addCharButton');
+const charsPerRoundInput =  document.getElementById('charsPerRound'); 
+
 
 function renderSettings() {
     charInputsDiv.innerHTML = '';
@@ -234,15 +279,16 @@ function renderSettings() {
         input.value = weight;
         input.dataset.char = char;
 
-        const inputAndLabel = document.createElement("div")
-        inputAndLabel.appendChild(label);
-        inputAndLabel.appendChild(input);
-        charInputsDiv.appendChild(inputAndLabel);
+        const container = document.createElement("div");
+        container.appendChild(label);
+        container.appendChild(input);
+        charInputsDiv.appendChild(container);
     }
 }
 
 settingsButton.addEventListener('click', () => {
-    settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
+    const isHidden = window.getComputedStyle(settingsPanel).display === 'none';
+    settingsPanel.style.display = isHidden ? 'block' : 'none';
     renderSettings();
 });
 
@@ -251,21 +297,35 @@ updateWeightsButton.addEventListener('click', () => {
     inputs.forEach(input => {
         const char = input.dataset.char;
         const weight = Number(input.value);
-        createOrUpdateCharWeight(char,weight);
-       
+        createOrUpdateCharWeight(char, weight);
     });
     resetTest();
 });
 
-function createOrUpdateCharWeight(char,weight){
-    if (weight >= 0) charWeights[char] = weight;
-    saveWeights();
-    probabilityArray = buildProbabilityArray(charWeights);
-}
+charsPerRoundInput.addEventListener("input",()=>{
+    value = charsPerRoundInput.value;
 
-/* =============================
-   ADD NEW CHARACTER
-============================= */
+    resetTest();
+
+
+})
+
+resetWeightsButton.addEventListener('click', () => {
+
+    // console.log(charWeights);
+   
+      Object.keys(charWeights).forEach(key => {
+        value = charWeights[key]
+        // console.log(value);
+         charWeights[key] = 1;
+    });
+    saveWeights();
+    renderSettings();
+    updateProbabilityArray();
+    resetTest();
+});
+
+
 addCharButton.addEventListener('click', () => {
     const newChar = document.getElementById('newChar').value;
     const newWeight = Number(document.getElementById('newWeight').value);
@@ -283,6 +343,17 @@ addCharButton.addEventListener('click', () => {
     renderSettings();
     resetTest();
 });
+
+function createOrUpdateCharWeight(char, weight) {
+    if (weight >= 0) charWeights[char] = weight;
+    saveWeights();
+    updateProbabilityArray();
+  
+}
+
+function updateProbabilityArray(){
+       probabilityArray = buildProbabilityArray(charWeights);
+}
 
 /* =============================
    INITIAL RENDER
