@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>LLM Prompt Engineering Workspace</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --border: #1f2933;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+
+      --role: #1e3a8a;
+      --task: #065f46;
+      --context: #374151;
+      --constraints: #7c2d12;
+      --output: #6d28d9;
+      --examples: #155e75;
+
+      --accent: #22d3ee;
+      --warn: #facc15;
+      --error: #f87171;
+      --success: #4ade80;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      font-size: 18px;
+      margin: 0;
+    }
+
+    header span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      padding: 16px;
+    }
+
+    .section {
+      border: 1px solid var(--border);
+      border-left: 6px solid;
+      background: var(--panel);
+      padding: 12px;
+      margin-bottom: 12px;
+      position: relative;
+    }
+
+    .section h2 {
+      margin: 0 0 6px;
+      font-size: 14px;
+    }
+
+    .section p.hint {
+      margin: 0 0 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .section textarea {
+      width: 100%;
+      min-height: 70px;
+      resize: vertical;
+      background: #020617;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px;
+      font-size: 13px;
+    }
+
+    .role { border-color: var(--role); }
+    .task { border-color: var(--task); }
+    .context { border-color: var(--context); }
+    .constraints { border-color: var(--constraints); }
+    .output { border-color: var(--output); }
+    .examples { border-color: var(--examples); }
+
+    .badge {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #020617;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    aside {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      padding: 12px;
+    }
+
+    aside h3 {
+      margin-top: 0;
+      font-size: 14px;
+    }
+
+    .signal {
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .signal.good { color: var(--success); }
+    .signal.warn { color: var(--warn); }
+    .signal.bad { color: var(--error); }
+
+    .score {
+      margin-top: 12px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    button {
+      background: var(--accent);
+      border: none;
+      color: #020617;
+      font-weight: 600;
+      padding: 8px 12px;
+      cursor: pointer;
+      border-radius: 4px;
+      width: 100%;
+      margin-top: 12px;
+    }
+
+    pre {
+      background: #020617;
+      border: 1px solid var(--border);
+      padding: 8px;
+      font-size: 12px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Prompt Engineering Workspace</h1>
+  <span>Structured • Guided • Adaptive</span>
+</header>
+
+<main>
+  <section>
+    <div class="section role">
+      <h2>Role / Persona</h2>
+      <span class="badge">Authority</span>
+      <p class="hint">Define who the model is and its level of expertise.</p>
+      <textarea id="role" placeholder="You are a senior backend engineer specializing in Spring Boot and distributed systems."></textarea>
+    </div>
+
+    <div class="section task">
+      <h2>Task / Objective</h2>
+      <span class="badge">Action</span>
+      <p class="hint">Specify exactly what the model must do.</p>
+      <textarea id="task" placeholder="Design a REST API architecture for a multi-tenant SaaS application."></textarea>
+    </div>
+
+    <div class="section context">
+      <h2>Context / Input</h2>
+      <span class="badge">Data</span>
+      <p class="hint">Provide domain context, constraints, or reference material.</p>
+      <textarea id="context" placeholder="The system serves enterprise customers, uses PostgreSQL, and must support horizontal scaling."></textarea>
+    </div>
+
+    <div class="section constraints">
+      <h2>Constraints / Rules</h2>
+      <span class="badge">Guardrails</span>
+      <p class="hint">What must or must not be done.</p>
+      <textarea id="constraints" placeholder="Avoid vendor-specific services. Prefer clean architecture."></textarea>
+    </div>
+
+    <div class="section output">
+      <h2>Output Format</h2>
+      <span class="badge">Structure</span>
+      <p class="hint">Explicitly define the response structure.</p>
+      <textarea id="output" placeholder="Return a bullet list with architecture layers and a sequence diagram description."></textarea>
+    </div>
+
+    <div class="section examples">
+      <h2>Examples (Optional)</h2>
+      <span class="badge">Calibration</span>
+      <p class="hint">Few-shot examples dramatically improve accuracy.</p>
+      <textarea id="examples" placeholder="Input: ... Output: ..."></textarea>
+    </div>
+  </section>
+
+  <aside>
+    <h3>Prompt Quality Signals</h3>
+    <div id="signals"></div>
+
+    <div class="score">
+      <strong>Prompt Quality Score:</strong>
+      <span id="score">0%</span>
+    </div>
+
+    <button onclick="generatePrompt()">Generate Final Prompt</button>
+
+    <pre id="finalPrompt"></pre>
+  </aside>
+</main>
+
+<script>
+  const fields = ["role", "task", "context", "constraints", "output", "examples"];
+
+  function generatePrompt() {
+    let filled = 0;
+    let signals = [];
+    let outputText = "";
+
+    fields.forEach(id => {
+      const value = document.getElementById(id).value.trim();
+      if (value.length > 0) filled++;
+
+      if ((id === "role" || id === "task") && value.length === 0) {
+        signals.push({ type: "bad", text: `${id} is missing (critical)` });
+      }
+
+      if (id === "output" && !value.toLowerCase().includes("format")) {
+        signals.push({ type: "warn", text: "Output format could be more explicit" });
+      }
+
+      if (value.length > 0) {
+        outputText += `${id.toUpperCase()}:\n${value}\n\n`;
+      }
+    });
+
+    if (signals.length === 0) {
+      signals.push({ type: "good", text: "Prompt structure looks strong" });
+    }
+
+    const score = Math.round((filled / fields.length) * 100);
+
+    document.getElementById("signals").innerHTML =
+      signals.map(s => `<div class="signal ${s.type}">• ${s.text}</div>`).join("");
+
+    document.getElementById("score").innerText = score + "%";
+    document.getElementById("finalPrompt").innerText = outputText.trim();
+  }
+</script>
+
+</body>
+</html>
