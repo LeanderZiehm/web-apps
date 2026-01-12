@@ -66,6 +66,240 @@
       background: #202866;
     }
 
+    .habit.pending {
+      opacity: 0.6;
+      border-color: var(--accent-2);
+    }
+
+    .habit.error {
+      border-color: var(--danger);
+      background: #3a1f2b;
+    }
+
+    .icon {
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+
+    .label {
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    .type {
+      font-size: 0.7rem;
+      margin-top: 6px;
+      color: var(--muted);
+    }
+
+    .status {
+      font-size: 0.65rem;
+      margin-top: 4px;
+      color: var(--muted);
+    }
+
+    .add {
+      background: transparent;
+      border: 2px dashed var(--muted);
+      color: var(--muted);
+    }
+
+    .add:hover {
+      border-color: var(--accent-2);
+      color: var(--accent-2);
+    }
+
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>Habit Tracker</h1>
+<div id="grid" class="grid"></div>
+
+<script>
+  const API_BASE = "https://tracker-api.leanderziehm.com";
+
+  let habits = [
+    { id: "wash_face", label: "Wash Face", icon: "🧼", mode: "pulse", active: false, status: "idle" },
+    { id: "brush_teeth", label: "Brush Teeth", icon: "🦷", mode: "pulse", active: false, status: "idle" },
+    { id: "wash_hair", label: "Wash Hair", icon: "🚿", mode: "pulse", active: false, status: "idle" },
+    { id: "work_session", label: "Work Session", icon: "💻", mode: "toggle", active: false, status: "idle" },
+    { id: "gym", label: "Gym", icon: "🏋️", mode: "toggle", active: false, status: "idle" },
+  ];
+
+  const grid = document.getElementById("grid");
+
+  function render() {
+    grid.innerHTML = "";
+
+    habits.forEach(habit => {
+      const el = document.createElement("div");
+      el.className = `habit ${habit.active ? "active" : ""} ${habit.status !== "idle" ? habit.status : ""}`;
+
+      el.innerHTML = `
+        <div class="icon">${habit.icon}</div>
+        <div class="label">${habit.label}</div>
+        <div class="type">${habit.mode}</div>
+        <div class="status">
+          ${habit.status === "pending" ? "syncing…" : habit.status === "error" ? "failed" : ""}
+        </div>
+      `;
+
+      el.onclick = () => handleHabitClick(habit);
+      grid.appendChild(el);
+    });
+
+    const add = document.createElement("div");
+    add.className = "habit add";
+    add.innerHTML = `
+      <div class="icon">➕</div>
+      <div class="label">Add</div>
+    `;
+    add.onclick = addHabit;
+    grid.appendChild(add);
+  }
+
+  async function refetchState() {
+    try {
+      const res = await fetch(`${API_BASE}/habits`);
+      if (!res.ok) return;
+
+      const serverHabits = await res.json();
+
+      serverHabits.forEach(s => {
+        const local = habits.find(h => h.id === s.type);
+        if (local) {
+          local.active = !!s.active;
+          local.status = "idle";
+        }
+      });
+
+      render();
+    } catch {}
+  }
+
+  async function handleHabitClick(habit) {
+    if (habit.status === "pending") return;
+
+    if (habit.mode === "pulse") {
+      habit.status = "pending";
+      habit.active = true;
+      render();
+
+      try {
+        const res = await fetch(`${API_BASE}/habits`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: habit.id,
+            description: habit.label,
+            when: "NOW"
+          })
+        });
+
+        if (!res.ok) throw new Error();
+
+        habit.status = "idle";
+        habit.active = false;
+        await refetchState();
+      } catch {
+        habit.status = "error";
+        habit.active = false;
+        render();
+      }
+    }
+
+    if (habit.mode === "toggle") {
+      const prev = habit.active;
+
+      habit.active = !habit.active;
+      habit.status = "pending";
+      render();
+
+      try {
+        const res = await fetch(`${API_BASE}/timers`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: habit.label,
+            action: habit.active ? "START" : "END"
+          })
+        });
+
+        if (!res.ok) throw new Error();
+
+        habit.status = "idle";
+        await refetchState();
+      } catch {
+        habit.active = prev;
+        habit.status = "error";
+        render();
+      }
+    }
+  }
+
+  function addHabit() {
+    const label = prompt("Habit name?");
+    if (!label) return;
+
+    const icon = prompt("Emoji icon?", "✅") || "✅";
+    const mode = prompt("Type: pulse or toggle?", "pulse");
+
+    habits.push({
+      id: label.toLowerCase().replace(/\s+/g, "_"),
+      label,
+      icon,
+      mode: mode === "toggle" ? "toggle" : "pulse",
+      active: false,
+      status: "idle"
+    });
+
+    render();
+  }
+
+  render();
+  refetchState();
+</script>
+
+</body>
+</html>
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+    }
+
+    .habit {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 110px;
+      transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.2s;
+      user-select: none;
+      border: 2px solid transparent;
+    }
+
+    .habit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+
+    .habit.active {
+      border-color: var(--accent);
+      background: #202866;
+    }
+
     .icon {
       font-size: 2rem;
       margin-bottom: 8px;
